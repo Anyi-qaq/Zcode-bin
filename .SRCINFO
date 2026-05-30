@@ -1,4 +1,4 @@
-pkgbase = zcode
+pkgbase = zcode-bin
 	pkgdesc = ZCode - AI-powered code editor by CodeGeeX
 	pkgver = 2.13.0
 	pkgrel = 1
@@ -17,4 +17,4 @@ pkgbase = zcode
 	sha256sums = SKIP
 	sha256sums = SKIP
 
-pkgname = zcode
+pkgname = zcode-bin
