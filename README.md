@@ -1,6 +1,6 @@
 # ZCode AUR Package
 
-Arch Linux PKGBUILD for [ZCode](https://codegeex.cn/) - AI-powered code editor by CodeGeeX.
+Arch Linux PKGBUILD for [ZCode](https://codegeex.cn/) - AI-powered code editor by ZAI.
 
 ## Installation
 
