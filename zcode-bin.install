@@ -1,0 +1,65 @@
+post_install() {
+    local DESKTOP="zcode-bin.desktop"
+    local SCHEME="x-scheme-handler/zcode"
+
+    # 1. Update desktop database
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database -q /usr/share/applications 2>/dev/null || true
+    fi
+
+    # 2. Register zcode:// protocol handler (xdg-mime)
+    if command -v xdg-mime >/dev/null 2>&1; then
+        xdg-mime default "${DESKTOP}" "${SCHEME}" 2>/dev/null || true
+    fi
+
+    # 3. Also register at user level (some browsers check user mimeapps.list)
+    if command -v xdg-mime >/dev/null 2>&1; then
+        # Ensure user-level mimeapps.list exists
+        mkdir -p "${HOME}/.local/share/applications" 2>/dev/null || true
+        # Write directly into user mimeapps.list for browser compatibility
+        # (use printf to avoid zsh noclobber issues in install hooks)
+        local USER_MIME="${HOME}/.local/share/applications/mimeapps.list"
+        if [ -s "$USER_MIME" ] && grep -q "^\[Default Applications\]" "$USER_MIME" 2>/dev/null; then
+            if ! grep -q "^${SCHEME}=" "$USER_MIME" 2>/dev/null; then
+                printf '%s\n' "${SCHEME}=${DESKTOP}" >> "$USER_MIME"
+            fi
+        else
+            printf '%s\n' "[Default Applications]" "${SCHEME}=${DESKTOP}" > "$USER_MIME"
+        fi
+    fi
+
+    # 4. gio / GNOME handler (used by Chrome on some systems)
+    if command -v gio >/dev/null 2>&1; then
+        gio mime "${SCHEME}" "${DESKTOP}" 2>/dev/null || true
+    fi
+
+    echo ""
+    echo ":: ZCode 3.0.1 installed."
+    echo ":: zcode:// protocol registered → $(xdg-mime query default ${SCHEME} 2>/dev/null || echo '<checking>')"
+    echo ":: If login still fails, run:  xdg-open zcode://test"
+    echo ":: Then check the opened window.  Also try restarting Chrome."
+    echo ""
+}
+
+post_upgrade() {
+    post_install
+}
+
+post_remove() {
+    local SCHEME="x-scheme-handler/zcode"
+
+    # Unregister protocol handler
+    if command -v xdg-mime >/dev/null 2>&1; then
+        xdg-mime default '' "${SCHEME}" 2>/dev/null || true
+    fi
+
+    # Remove from user mimeapps.list
+    local USER_MIME="${HOME}/.local/share/applications/mimeapps.list"
+    if [ -f "$USER_MIME" ]; then
+        sed -i "\|^${SCHEME}=|d" "$USER_MIME" 2>/dev/null || true
+    fi
+
+    if command -v update-desktop-database >/dev/null 2>&1; then
+        update-desktop-database -q /usr/share/applications 2>/dev/null || true
+    fi
+}
