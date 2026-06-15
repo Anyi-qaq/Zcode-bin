@@ -124,10 +124,14 @@ LAUNCHER_EOF
     # Handled automatically via the install= directive in PKGBUILD
 
     # ===== Icons (1024x1024 source from macOS DMG) =====
-    for size in 16 32 48 64 128 256 512 1024; do
-        install -Dm644 "${RES_SRC}/icon.png" \
-            "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/zcode.png" 2>/dev/null || true
-    done
+    if [ -f "${RES_SRC}/icon.png" ]; then
+        for size in 16 32 48 64 128 256 512 1024; do
+            install -Dm644 "${RES_SRC}/icon.png" \
+                "${pkgdir}/usr/share/icons/hicolor/${size}x${size}/apps/zcode.png"
+        done
+    else
+        echo "WARNING: icon.png not found at ${RES_SRC}/icon.png" >&2
+    fi
 
     # ===== License =====
     install -Dm644 "${srcdir}/LICENSE" "${pkgdir}/usr/share/licenses/${pkgname}/LICENSE"

@@ -1,0 +1,16 @@
+# Build artifacts
+src/
+pkg/
+*.pkg.tar.zst
+*.pkg.tar.xz
+*.pkg.tar.gz
+
+# Downloaded sources
+*.AppImage
+*.dmg
+*.zip
+*.tar.gz
+
+# Misc
+*.swp
+*~

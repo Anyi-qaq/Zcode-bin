@@ -33,11 +33,15 @@ post_install() {
         gio mime "${SCHEME}" "${DESKTOP}" 2>/dev/null || true
     fi
 
+    # 5. Update icon cache (otherwise no icon in launcher)
+    if command -v gtk-update-icon-cache >/dev/null 2>&1; then
+        gtk-update-icon-cache -qtf /usr/share/icons/hicolor 2>/dev/null || true
+    fi
+
     echo ""
     echo ":: ZCode 3.0.1 installed."
     echo ":: zcode:// protocol registered → $(xdg-mime query default ${SCHEME} 2>/dev/null || echo '<checking>')"
     echo ":: If login still fails, run:  xdg-open zcode://test"
-    echo ":: Then check the opened window.  Also try restarting Chrome."
     echo ""
 }
 
