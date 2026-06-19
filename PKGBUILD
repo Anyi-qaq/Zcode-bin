@@ -7,12 +7,9 @@ url="https://github.com/Anyi-qaq/Zcode-bin"
 license=('custom:ZCode')
 depends=('gtk3' 'nss' 'libnotify' 'libxss' 'libxtst' 'xdg-utils' 'libsecret' 'hicolor-icon-theme')
 options=('!strip')
-install=zcode-bin.install
 source=("zcode-${pkgver}-linux-x64.deb::https://cdn.codegeex.cn/zcode/electron/releases/${pkgver}/ZCode-${pkgver}-linux-x64.deb"
-        "zcode-bin.install"
         "LICENSE")
 sha256sums=('SKIP'
-            'SKIP'
             'SKIP')
 
 package() {

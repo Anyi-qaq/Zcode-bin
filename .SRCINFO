@@ -3,7 +3,6 @@ pkgbase = zcode-bin
 	pkgver = 3.1.2
 	pkgrel = 1
 	url = https://github.com/Anyi-qaq/Zcode-bin
-	install = zcode-bin.install
 	arch = x86_64
 	license = custom:ZCode
 	depends = gtk3
@@ -16,9 +15,7 @@ pkgbase = zcode-bin
 	depends = hicolor-icon-theme
 	options = !strip
 	source = zcode-3.1.2-linux-x64.deb::https://cdn.codegeex.cn/zcode/electron/releases/3.1.2/ZCode-3.1.2-linux-x64.deb
-	source = zcode-bin.install
 	source = LICENSE
-	sha256sums = SKIP
 	sha256sums = SKIP
 	sha256sums = SKIP
 
