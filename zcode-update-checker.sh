@@ -29,7 +29,13 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 url_exists() {
-    curl -sIf --max-time 10 -H "User-Agent: $USER_AGENT" "$1" 2>/dev/null | grep -q '200 OK'
+    # Use %{http_code} instead of grepping the status line,
+    # because HTTP/2 responses omit the reason phrase ("200" not "200 OK").
+    # -L follows redirects (GitHub releases return 302 → 200).
+    local code
+    code=$(curl -sIL --max-time 10 -o /dev/null -w '%{http_code}' \
+        -H "User-Agent: $USER_AGENT" "$1" 2>/dev/null)
+    [ "$code" = "200" ]
 }
 
 # ── version helpers ──────────────────────────────────────
