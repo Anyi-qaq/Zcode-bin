@@ -44,13 +44,17 @@ jobs:
     - name: Check if PKGBUILD was updated
       id: check
       run: |
-        if git diff --quiet PKGBUILD; then
+        FORCE="${{ github.event.inputs.force_update }}"
+        NEW_VER=$(grep '^pkgver=' PKGBUILD | cut -d'=' -f2 | tr -d '"')
+        echo "new_version=${NEW_VER}" >> $GITHUB_OUTPUT
+        if [ "$FORCE" = "true" ]; then
+          echo "Force update: pushing to AUR regardless of diff"
+          echo "updated=true" >> $GITHUB_OUTPUT
+        elif git diff --quiet PKGBUILD; then
           echo "No changes - already up to date"
           echo "updated=false" >> $GITHUB_OUTPUT
         else
           echo "Changes detected!"
-          NEW_VER=$(grep '^pkgver=' PKGBUILD | cut -d'=' -f2 | tr -d '"')
-          echo "new_version=${NEW_VER}" >> $GITHUB_OUTPUT
           echo "updated=true" >> $GITHUB_OUTPUT
         fi
 
@@ -64,7 +68,7 @@ jobs:
         sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${NEW_VER}/ZCode-|g" .SRCINFO
 
     - name: Commit and push to GitHub
-      if: steps.check.outputs.updated == 'true'
+      if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'
       run: |
         git add PKGBUILD .SRCINFO
         git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }}"
@@ -81,7 +85,7 @@ jobs:
         git push origin master
 
     - name: Create GitHub Release
-      if: steps.check.outputs.updated == 'true'
+      if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'
       uses: softprops/action-gh-release@v1
       with:
         tag_name: v${{ steps.check.outputs.new_version }}
