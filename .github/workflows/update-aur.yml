@@ -61,11 +61,14 @@ jobs:
     - name: Sync .SRCINFO
       if: steps.check.outputs.updated == 'true'
       run: |
+        T="$(printf '\t')"
         NEW_VER='${{ steps.check.outputs.new_version }}'
-        sed -i "s/^\tpkgver = .*/\\tpkgver = ${NEW_VER}/" .SRCINFO
-        sed -i 's/^\tpkgrel = .*/\\tpkgrel = 1/' .SRCINFO
+        sed -i "s/^${T}pkgver = .*/${T}pkgver = ${NEW_VER}/" .SRCINFO
+        sed -i "s/^${T}pkgrel = .*/${T}pkgrel = 1/"           .SRCINFO
         sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${NEW_VER}-linux-x64.deb|g" .SRCINFO
-        sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${NEW_VER}/ZCode-|g" .SRCINFO
+        sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${NEW_VER}/ZCode-|g"      .SRCINFO
+        echo "=== .SRCINFO ==="
+        head -10 .SRCINFO
 
     - name: Commit and push to GitHub
       if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'
