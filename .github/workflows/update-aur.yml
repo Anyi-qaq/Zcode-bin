@@ -77,6 +77,8 @@ jobs:
     - name: Push to AUR
       if: steps.check.outputs.updated == 'true'
       run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
         git clone ssh://aur@aur.archlinux.org/zcode-bin.git aur-repo
         cd aur-repo
         cp ../PKGBUILD ../.SRCINFO ../zcode-bin.install . 2>/dev/null || true
