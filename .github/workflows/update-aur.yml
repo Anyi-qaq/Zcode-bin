@@ -77,18 +77,36 @@ jobs:
     - name: Push to AUR
       if: steps.check.outputs.updated == 'true'
       run: |
+        set -e
         mkdir -p ~/.ssh
         ssh-keyscan -t ed25519,rsa,ecdsa aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
+        echo "::group::Clone AUR repo"
         git clone ssh://aur@aur.archlinux.org/zcode-bin.git aur-repo
+        echo "AUR remote: $(cd aur-repo && git remote get-url origin)"
+        echo "AUR HEAD: $(cd aur-repo && git log -1 --oneline)"
+        echo "::endgroup::"
+
+        echo "::group::Update files"
         cd aur-repo
         cp ../PKGBUILD ../.SRCINFO ../zcode-bin.install . 2>/dev/null || true
+        # Remove files no longer needed (old zcode.desktop)
+        rm -f zcode.desktop
         git add PKGBUILD .SRCINFO zcode-bin.install
-        if git diff --cached --quiet; then
+        git rm --ignore-unmatch zcode.desktop 2>/dev/null || true
+        if [ -z "$(git status --porcelain)" ]; then
           echo "No changes to push to AUR"
           exit 0
         fi
+        echo "Files to be committed:"
+        git diff --cached --stat
+        echo "::endgroup::"
+
+        echo "::group::Commit and push"
         git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }}"
-        git push -v origin master 2>&1
+        echo "Pushing to aur@aur.archlinux.org:zcode-bin.git (master)..."
+        git push origin master
+        echo "Push successful!"
+        echo "::endgroup::"
 
     - name: Create GitHub Release
       if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'
