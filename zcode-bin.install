@@ -1,5 +1,5 @@
 post_install() {
-    local DESKTOP="zcode-bin.desktop"
+    local DESKTOP="zcode.desktop"
     local SCHEME="x-scheme-handler/zcode"
 
     # 1. Update desktop database
@@ -7,42 +7,20 @@ post_install() {
         update-desktop-database -q /usr/share/applications 2>/dev/null || true
     fi
 
-    # 2. Register zcode:// protocol handler (xdg-mime)
+    # 2. Update MIME database
+    if command -v update-mime-database >/dev/null 2>&1; then
+        update-mime-database /usr/share/mime 2>/dev/null || true
+    fi
+
+    # 3. Register zcode:// protocol handler
     if command -v xdg-mime >/dev/null 2>&1; then
         xdg-mime default "${DESKTOP}" "${SCHEME}" 2>/dev/null || true
     fi
 
-    # 3. Also register at user level (some browsers check user mimeapps.list)
-    if command -v xdg-mime >/dev/null 2>&1; then
-        # Ensure user-level mimeapps.list exists
-        mkdir -p "${HOME}/.local/share/applications" 2>/dev/null || true
-        # Write directly into user mimeapps.list for browser compatibility
-        # (use printf to avoid zsh noclobber issues in install hooks)
-        local USER_MIME="${HOME}/.local/share/applications/mimeapps.list"
-        if [ -s "$USER_MIME" ] && grep -q "^\[Default Applications\]" "$USER_MIME" 2>/dev/null; then
-            if ! grep -q "^${SCHEME}=" "$USER_MIME" 2>/dev/null; then
-                printf '%s\n' "${SCHEME}=${DESKTOP}" >> "$USER_MIME"
-            fi
-        else
-            printf '%s\n' "[Default Applications]" "${SCHEME}=${DESKTOP}" > "$USER_MIME"
-        fi
-    fi
-
-    # 4. gio / GNOME handler (used by Chrome on some systems)
-    if command -v gio >/dev/null 2>&1; then
-        gio mime "${SCHEME}" "${DESKTOP}" 2>/dev/null || true
-    fi
-
-    # 5. Update icon cache (otherwise no icon in launcher)
+    # 4. Update icon cache
     if command -v gtk-update-icon-cache >/dev/null 2>&1; then
         gtk-update-icon-cache -qtf /usr/share/icons/hicolor 2>/dev/null || true
     fi
-
-    echo ""
-    echo ":: ZCode 3.0.1 installed."
-    echo ":: zcode:// protocol registered → $(xdg-mime query default ${SCHEME} 2>/dev/null || echo '<checking>')"
-    echo ":: If login still fails, run:  xdg-open zcode://test"
-    echo ""
 }
 
 post_upgrade() {

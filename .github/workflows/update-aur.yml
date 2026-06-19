@@ -1,5 +1,8 @@
 name: Check and Update AUR Package
 
+permissions:
+  contents: write
+
 on:
   schedule:
     # Run daily at 00:00 UTC (08:00 Beijing Time)
@@ -19,11 +22,6 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
 
-    - name: Install build dependencies
-      run: |
-        sudo apt-get update -qq
-        sudo apt-get install -y -qq p7zip-full
-
     - name: Setup SSH for AUR
       uses: webfactory/ssh-agent@v0.9.0
       with:
@@ -39,7 +37,6 @@ jobs:
       run: |
         chmod +x zcode-update-checker.sh
         if [ "${{ github.event.inputs.force_update }}" = "true" ]; then
-          # Force update: skip version comparison by temporarily lowering pkgver
           sed -i 's/^pkgver=.*/pkgver=0.0.0/' PKGBUILD
         fi
         ./zcode-update-checker.sh --update
@@ -53,30 +50,24 @@ jobs:
         else
           echo "Changes detected!"
           NEW_VER=$(grep '^pkgver=' PKGBUILD | cut -d'=' -f2 | tr -d '"')
-          ELECTRON_VER=$(grep -oP 'electron-v\K[0-9.]+(?=-linux-x64)' PKGBUILD | head -1)
           echo "new_version=${NEW_VER}" >> $GITHUB_OUTPUT
-          echo "electron_version=${ELECTRON_VER}" >> $GITHUB_OUTPUT
           echo "updated=true" >> $GITHUB_OUTPUT
         fi
 
     - name: Sync .SRCINFO
       if: steps.check.outputs.updated == 'true'
       run: |
-        # Rebuild .SRCINFO by reading the updated PKGBUILD values
         NEW_VER='${{ steps.check.outputs.new_version }}'
-        NEW_ELECTRON_VER='${{ steps.check.outputs.electron_version }}'
         sed -i "s/^\tpkgver = .*/\\tpkgver = ${NEW_VER}/" .SRCINFO
         sed -i 's/^\tpkgrel = .*/\\tpkgrel = 1/' .SRCINFO
-        sed -i "s|electron-v[0-9.]*-linux-x64\.zip|electron-v${NEW_ELECTRON_VER}-linux-x64.zip|g" .SRCINFO
-        sed -i "s|ZCode-[0-9.]*-mac-arm64\.dmg|ZCode-${NEW_VER}-mac-arm64.dmg|g" .SRCINFO
+        sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${NEW_VER}-linux-x64.deb|g" .SRCINFO
         sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${NEW_VER}/ZCode-|g" .SRCINFO
-        sed -i "s|/download/v[0-9.]*/electron-v|/download/v${NEW_ELECTRON_VER}/electron-v|g" .SRCINFO
 
     - name: Commit and push to GitHub
       if: steps.check.outputs.updated == 'true'
       run: |
         git add PKGBUILD .SRCINFO
-        git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }} (Electron ${{ steps.check.outputs.electron_version }})"
+        git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }}"
         git push origin main
 
     - name: Push to AUR
@@ -84,9 +75,9 @@ jobs:
       run: |
         git clone ssh://aur@aur.archlinux.org/zcode-bin.git aur-repo
         cd aur-repo
-        cp ../PKGBUILD ../.SRCINFO ../zcode.desktop ../zcode-bin.install . 2>/dev/null || true
-        git add PKGBUILD .SRCINFO zcode.desktop zcode-bin.install
-        git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }} (Electron ${{ steps.check.outputs.electron_version }})"
+        cp ../PKGBUILD ../.SRCINFO ../zcode-bin.install . 2>/dev/null || true
+        git add PKGBUILD .SRCINFO zcode-bin.install
+        git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }}"
         git push origin master
 
     - name: Create GitHub Release
@@ -99,8 +90,7 @@ jobs:
           Automatic update to ZCode ${{ steps.check.outputs.new_version }}
 
           - ZCode version: **${{ steps.check.outputs.new_version }}**
-          - Electron runtime: **${{ steps.check.outputs.electron_version }}**
-          - Build: macOS DMG resources + Electron Linux runtime
+          - Build: upstream Linux .deb
         generate_release_notes: false
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

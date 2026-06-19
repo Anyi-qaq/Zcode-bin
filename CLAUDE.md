@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Overview
 
-This is the **AUR packaging repository** for `zcode-bin` — packaging scripts that build a Linux-native ZCode installation from upstream's macOS DMG combined with the Electron Linux runtime. ZCode is an AI-powered code editor (proprietary, by ZAI/CodeGeeX). Since ZCode 3.0.0, upstream no longer publishes Linux builds; this PKGBUILD bridges that gap.
+This is the **AUR packaging repository** for `zcode-bin`. ZCode is an AI-powered code editor (proprietary, by ZAI). Since ZCode 3.1+, upstream publishes Linux `.deb` packages — this PKGBUILD extracts and repackages them for Arch Linux.
 
 ## Build & Test
 
@@ -16,7 +16,7 @@ makepkg -si
 makepkg
 
 # Generate/update .SRCINFO (required for AUR)
-makepkg --printsrcinfo > .SRCINFO
+makepkg --printsrcinfo >| .SRCINFO
 
 # Lint the PKGBUILD (requires namcap)
 namcap PKGBUILD
@@ -27,41 +27,36 @@ namcap zcode-bin-*.pkg.tar.zst
 
 # Auto-update PKGBUILD to latest version
 ./zcode-update-checker.sh --update
-
-# Verbose debug of the update checker
-bash -x ./zcode-update-checker.sh
 ```
 
 ## Architecture
 
-The build is a **cross-platform assembly** — it doesn't compile anything; it combines three disparate sources:
+The PKGBUILD downloads a single source: the upstream `.deb` from `cdn.codegeex.cn`. The `package()` function extracts `data.tar.xz` from the ar archive and copies everything into the package. No compilation, no npm, no cross-platform assembly.
 
-1. **Electron Linux runtime** (`electron-v{VERSION}-linux-x64.zip`) — downloaded from GitHub Releases, provides the Chromium-based runtime with native Linux binaries.
-2. **ZCode macOS DMG** (`ZCode-{VERSION}-mac-arm64.dmg`) — downloaded from `cdn.zcode-ai.com`, provides platform-independent resources: `app.asar` (the Electron app bundle), `glm/` (JS-based AI agent core, replaces opencode/codex/gemini from 2.x), and `model-providers/`.
-3. **Linux native module** (`@lydell/node-pty-linux-x64`) — installed via npm in `prepare()`, replaces the macOS `node-pty` binary in `app.asar.unpacked`.
+**Installed layout** (from the `.deb`):
+- `/opt/ZCode/zcode` — the Electron binary (launched via `/usr/bin/zcode-bin` wrapper)
+- `/opt/ZCode/resources/` — `app.asar` (187MB), `glm/` (AI agent core), `model-providers/`, `tools/ripgrep/rg` (static binary)
+- `/usr/share/applications/zcode.desktop` — desktop entry (Exec= `/opt/ZCode/zcode %U`)
+- `/usr/share/icons/hicolor/*/apps/zcode.png` — icons in multiple sizes
+- `/opt/ZCode/resources/app.asar.unpacked/` — native modules for all platforms (linux, darwin)
 
-**Installed layout** (`/opt/zcode/`):
-- Electron runtime binaries at the root (the main binary is renamed from `electron` to `zcode`)
-- `resources/app.asar` — the ZCode application
-- `resources/glm/` — AI agent core (`zcode.cjs` is the entry point; its `.node-bundle-meta.json` platform field is patched from `darwin-arm64` to `linux-x64`)
-- `resources/app.asar.unpacked/node_modules/` — native modules with Linux `pty.node`
-- `resources/tools/ripgrep/rg` → symlink to `/usr/bin/rg` (system ripgrep)
-
-**Launcher**: `/usr/bin/zcode-bin` is a one-line script that runs `/opt/zcode/zcode --no-sandbox "$@"`.
+**Key differences from the old 3.0.x PKGBUILD** (which combined Electron Linux + macOS DMG + npm node-pty):
+- Single source: one `.deb` instead of three separate downloads
+- No `makedepends` (no npm, p7zip, unzip needed)
+- No platform metadata patching (`.node-bundle-meta.json` already says `linux-x64`)
+- ripgrep is bundled (static binary), not symlinked from system
+- Install path is `/opt/ZCode/` (matches upstream), previously `/opt/zcode/`
 
 ## Key Files
 
-- **`PKGBUILD`** — the full build definition: `prepare()` downloads and extracts all sources, `package()` assembles them into the final directory tree. Version is tracked in `pkgver=` and `pkgrel=`.
-- **`.SRCINFO`** — AUR metadata mirror of PKGBUILD. Must be kept in sync. Regenerate with `makepkg --printsrcinfo > .SRCINFO` after any PKGBUILD change.
-- **`zcode-update-checker.sh`** — standalone version checker. Scrapes the ZCode changelog page for latest version, downloads the DMG to extract the bundled Electron version from `Info.plist`, verifies the corresponding Electron Linux zip exists on GitHub, then sed-updates PKGBUILD in place. Called by CI with `--update`.
-- **`zcode-bin.install`** — pacman hooks: `post_install`/`post_upgrade` register the `zcode://` MIME protocol handler (via xdg-mime, user mimeapps.list, and gio), update the desktop database, and refresh the GTK icon cache. `post_remove` unregisters.
-- **`zcode.desktop`** — desktop entry with `StartupWMClass=ZCode` and `MimeType=x-scheme-handler/zcode`.
-- **`.github/workflows/update-aur.yml`** — daily cron workflow that runs `zcode-update-checker.sh --update`, syncs `.SRCINFO`, commits to GitHub, pushes to AUR remote (`ssh://aur@aur.archlinux.org/zcode-bin.git`), and creates a GitHub Release.
+- **`PKGBUILD`** — Arch package build script. `package()` extracts the `.deb`'s `data.tar.xz` and fixes permissions.
+- **`.SRCINFO`** — AUR metadata mirror. Regenerate with `makepkg --printsrcinfo >| .SRCINFO` after PKGBUILD changes.
+- **`zcode-update-checker.sh`** — scrapes ZCode changelog for latest version, verifies the `.deb` URL on `cdn.codegeex.cn`, sed-updates PKGBUILD. Called by CI with `--update`.
+- **`zcode-bin.install`** — pacman hooks for desktop database, MIME database, `zcode://` protocol handler registration, and icon cache.
+- **`.github/workflows/update-aur.yml`** — daily cron: runs update checker, syncs `.SRCINFO`, commits to GitHub + AUR, creates GitHub Release. Requires `AUR_SSH_KEY` secret.
 
-## Constraints
+## CI Gotchas
 
-- **No Linux builds from upstream** since 3.0.0 — the DMG extraction approach is the only way to get ZCode on Linux.
-- **Electron version is coupled to ZCode version** — each ZCode release bundles a specific Electron. The update checker must extract it from the DMG's `Info.plist`.
-- **`app.asar` is platform-independent** (JS/CSS/HTML), but native modules (`node-pty`) are not — hence the npm install step for the Linux variant.
-- **System ripgrep** is a hard dependency (`depends=('ripgrep')`) — the build symlinks it rather than bundling a binary.
-- **SHA256 sums are skipped** (`SKIP`) because the upstream DMG and Electron zip URLs are stable but their checksums would change every release; CI handles freshness verification by checking URL accessibility instead.
+- **`url_exists()` must use `curl -w '%{http_code}'`** — the old `grep '200 OK'` fails on HTTP/2 (no reason phrase) and on redirects (returns 302). Always test with `-L` to follow redirects.
+- **`.SRCINFO` overwrite** — zsh `noclobber` prevents `>` redirect on existing files; use `>|` or `tee`.
+- The CI workflow needs `permissions: contents: write` for `GITHUB_TOKEN` to push commits and create releases.

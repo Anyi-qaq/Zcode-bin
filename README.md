@@ -2,15 +2,11 @@
 
 Arch Linux PKGBUILD for [ZCode](https://zcode.z.ai/) - AI-powered code editor by ZAI.
 
-**Current version:** 3.0.1
+**Current version:** 3.1.2
 
 ## How It Works
 
-Since ZCode 3.0.0, the upstream no longer publishes Linux AppImages. This PKGBUILD builds a Linux package by combining:
-
-1. **Electron 41.0.3** Linux runtime (from [official Electron releases](https://github.com/electron/electron/releases))
-2. **ZCode 3.0.1** application resources extracted from the macOS DMG (platform-independent `app.asar` and JS-based agent core)
-3. **Linux native modules** (`node-pty`) installed via npm
+Since ZCode 3.1+, upstream publishes Linux `.deb` packages directly. This PKGBUILD simply extracts the `.deb` and repackages it for Arch Linux. No more cross-platform assembly needed.
 
 ## Installation
 
@@ -32,50 +28,31 @@ makepkg -si
 
 ## Dependencies
 
-- `zlib` - Compression library
-- `hicolor-icon-theme` - Icon theme
-- `ripgrep` - Fast search tool (symlinked into ZCode)
-- `npm` - Node.js package manager (build only)
-- `p7zip` - Archive extraction (build only)
-- `unzip` - ZIP extraction (build only)
+| Package | Purpose |
+|---------|---------|
+| `gtk3` | GUI toolkit |
+| `nss` | Network security (Chromium) |
+| `libnotify` | Desktop notifications |
+| `libxss` | X11 screen saver |
+| `libxtst` | X11 input testing |
+| `xdg-utils` | xdg-open, xdg-mime |
+| `libsecret` | Password/keyring storage |
+| `hicolor-icon-theme` | Icon theme |
 
 ## Files
 
 - `PKGBUILD` - Arch Linux package build script
-- `zcode.desktop` - Desktop entry file
+- `zcode-bin.install` - Post-install hooks (desktop/MIME integration)
 - `zcode-update-checker.sh` - Version checker and updater script
 - `.github/workflows/update-aur.yml` - GitHub Actions CI workflow
 
 ## Troubleshooting
 
-### Version Check Fails
-
-1. Check CDN accessibility:
-   ```bash
-   curl -I https://cdn.zcode-ai.com/zcode/electron/releases/
-   ```
-2. Check changelog:
-   ```bash
-   curl -sL https://zcode.z.ai/en/changelog | grep -oP '[0-9]+\.[0-9]+\.[0-9]+'
-   ```
-3. Run with verbose output:
-   ```bash
-   bash -x ./zcode-update-checker.sh
-   ```
-
 ### App Crashes on Startup
 
 1. Clear cache: `rm -rf ~/.cache/ZCode`
 2. Clear config: `rm -rf ~/.config/ZCode`
-3. Launch from terminal to see errors: `zcode-bin --no-sandbox`
-
-### Native Module Issues
-
-If node-pty fails to load, rebuild it:
-```bash
-cd /opt/zcode/resources/app.asar.unpacked
-npm rebuild --update-binary
-```
+3. Launch from terminal to see errors: `zcode-bin`
 
 ## License
 

@@ -3,9 +3,9 @@
 # zcode-update-checker.sh
 # Auto-detect new ZCode versions and update PKGBUILD.
 #
-# For 3.x+: ZCode no longer publishes Linux AppImages.
-# Instead we download the macOS DMG to extract platform-independent
-# resources, combined with the official Electron Linux runtime.
+# Since ZCode 3.1+, upstream publishes Linux .deb packages directly.
+# This script checks the changelog for new versions, verifies the .deb
+# URL is accessible, and updates PKGBUILD in place.
 #
 # Usage:
 #   ./zcode-update-checker.sh              # Check for updates (dry run)
@@ -16,8 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKGBUILD_FILE="${SCRIPT_DIR}/PKGBUILD"
-DMG_URL_BASE="https://cdn.zcode-ai.com/zcode/electron/releases"
-ELECTRON_RELEASES="https://github.com/electron/electron/releases"
+DEB_URL_BASE="https://cdn.codegeex.cn/zcode/electron/releases"
 CHANGELOG_URL="https://zcode.z.ai/en/changelog"
 USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
 
@@ -29,9 +28,6 @@ log_warn()  { echo -e "${YELLOW}[WARN]${NC}  $*" >&2; }
 log_error() { echo -e "${RED}[ERROR]${NC} $*" >&2; }
 
 url_exists() {
-    # Use %{http_code} instead of grepping the status line,
-    # because HTTP/2 responses omit the reason phrase ("200" not "200 OK").
-    # -L follows redirects (GitHub releases return 302 → 200).
     local code
     code=$(curl -sIL --max-time 10 -o /dev/null -w '%{http_code}' \
         -H "User-Agent: $USER_AGENT" "$1" 2>/dev/null)
@@ -64,16 +60,15 @@ get_latest_zcode_version() {
     fi
     local major minor patch
     IFS='.' read -r major minor patch <<< "$cur"
-    # Try up to 5 patch bumps, then minor bump
     for attempt in $(seq 1 5); do
         local next="${major}.${minor}.$((patch + attempt))"
-        if url_exists "${DMG_URL_BASE}/${next}/ZCode-${next}-mac-arm64.dmg"; then
+        if url_exists "${DEB_URL_BASE}/${next}/ZCode-${next}-linux-x64.deb"; then
             echo "$next"
             return 0
         fi
     done
     local next_minor="${major}.$((minor + 1)).0"
-    if url_exists "${DMG_URL_BASE}/${next_minor}/ZCode-${next_minor}-mac-arm64.dmg"; then
+    if url_exists "${DEB_URL_BASE}/${next_minor}/ZCode-${next_minor}-linux-x64.deb"; then
         echo "$next_minor"
         return 0
     fi
@@ -81,71 +76,19 @@ get_latest_zcode_version() {
     return 1
 }
 
-# ── Electron version extraction ──────────────────────────
-
-get_electron_version_from_dmg() {
-    local zcode_ver="$1"
-    local dmg_url="${DMG_URL_BASE}/${zcode_ver}/ZCode-${zcode_ver}-mac-arm64.dmg"
-    local tmp_dir
-    tmp_dir=$(mktemp -d)
-
-    log_info "正在下载 DMG 提取 Electron 版本..."
-    # 7z can extract a specific file from the DMG without writing the whole thing?
-    # Actually we need to download then extract. On CI this is fine.
-    if ! curl -sL --max-time 120 -H "User-Agent: $USER_AGENT" \
-        -o "${tmp_dir}/zcode.dmg" "$dmg_url" 2>/dev/null; then
-        log_error "下载 DMG 失败"
-        rm -rf "$tmp_dir"
-        return 1
-    fi
-
-    # Extract just the Info.plist from the Electron Framework
-    7z x "${tmp_dir}/zcode.dmg" -o"${tmp_dir}/dmg" -y >/dev/null 2>&1 || true
-
-    local plist
-    plist=$(find "${tmp_dir}/dmg" -path "*/Electron Framework.framework/*/Resources/Info.plist" 2>/dev/null | head -1)
-    if [ -z "$plist" ]; then
-        log_error "未找到 Electron Framework Info.plist"
-        rm -rf "$tmp_dir"
-        return 1
-    fi
-
-    local electron_ver
-    electron_ver=$(grep -A1 '<key>CFBundleVersion</key>' "$plist" | \
-        grep '<string>' | sed 's/.*<string>\(.*\)<\/string>.*/\1/' | tr -d '[:space:]')
-    if [ -z "$electron_ver" ]; then
-        log_error "无法从 Info.plist 提取 Electron 版本"
-        rm -rf "$tmp_dir"
-        return 1
-    fi
-
-    rm -rf "$tmp_dir"
-    echo "$electron_ver"
-}
-
-verify_electron_release() {
-    local ver="$1"
-    url_exists "https://github.com/electron/electron/releases/download/v${ver}/electron-v${ver}-linux-x64.zip"
-}
-
 # ── PKGBUILD updater ─────────────────────────────────────
 
 update_pkgbuild() {
     local new_zcode="$1"
-    local new_electron="$2"
 
-    log_info "更新 PKGBUILD: ZCode ${new_zcode} + Electron ${new_electron}"
+    log_info "更新 PKGBUILD: ZCode ${new_zcode}"
 
     # Update pkgver and pkgrel
     sed -i "s/^pkgver=.*/pkgver=${new_zcode}/"  "$PKGBUILD_FILE"
     sed -i "s/^pkgrel=.*/pkgrel=1/"             "$PKGBUILD_FILE"
 
-    # Update Electron URL (version appears in source filename and URL)
-    sed -i "s|electron-v[0-9.]*-linux-x64\.zip|electron-v${new_electron}-linux-x64.zip|g" "$PKGBUILD_FILE"
-    sed -i "s|/download/v[0-9.]*/electron-v|/download/v${new_electron}/electron-v|g" "$PKGBUILD_FILE"
-
-    # Update ZCode DMG URL (version in filename and directory)
-    sed -i "s|ZCode-[0-9.]*-mac-arm64\.dmg|ZCode-${new_zcode}-mac-arm64.dmg|g" "$PKGBUILD_FILE"
+    # Update .deb source URL
+    sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${new_zcode}-linux-x64.deb|g" "$PKGBUILD_FILE"
     sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${new_zcode}/ZCode-|g" "$PKGBUILD_FILE"
 
     log_ok "PKGBUILD 已更新"
@@ -194,31 +137,18 @@ main() {
     # ── auto update path ──────────────────────────────────
     log_info "开始自动更新..."
 
-    # Step 1: verify the DMG exists
-    local dmg_url="${DMG_URL_BASE}/${latest_ver}/ZCode-${latest_ver}-mac-arm64.dmg"
-    if ! url_exists "$dmg_url"; then
-        log_error "DMG 不可访问: $dmg_url"
+    # Verify the .deb exists
+    local deb_url="${DEB_URL_BASE}/${latest_ver}/ZCode-${latest_ver}-linux-x64.deb"
+    if ! url_exists "$deb_url"; then
+        log_error ".deb 不可访问: $deb_url"
         exit 1
     fi
-    log_ok "DMG 可访问"
+    log_ok ".deb 可访问"
 
-    # Step 2: extract Electron version from the new DMG
-    local electron_ver
-    electron_ver=$(get_electron_version_from_dmg "$latest_ver")
-    log_ok "Electron 版本: ${electron_ver}"
+    # Update PKGBUILD
+    update_pkgbuild "$latest_ver"
 
-    # Step 3: verify Electron release exists
-    if ! verify_electron_release "$electron_ver"; then
-        log_error "Electron ${electron_ver} Linux zip 不可访问"
-        log_info "URL: https://github.com/electron/electron/releases/download/v${electron_ver}/electron-v${electron_ver}-linux-x64.zip"
-        exit 1
-    fi
-    log_ok "Electron ${electron_ver} Linux zip 可访问"
-
-    # Step 4: update PKGBUILD
-    update_pkgbuild "$latest_ver" "$electron_ver"
-
-    log_ok "更新完成! ZCode ${latest_ver} + Electron ${electron_ver}"
+    log_ok "更新完成! ZCode ${latest_ver}"
 }
 
 main "$@"
