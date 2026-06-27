@@ -67,7 +67,7 @@ If the launcher reports an Electron version mismatch during build, update `_elec
 
 ## Credits
 
-The launcher script and system Electron approach are adapted from [Woodenman](https://github.com/zxp19821005)'s [ZCode AUR package](https://github.com/zxp19821005/My_AUR_Files/tree/main/zcode-bin). Their design significantly reduces package size by using the system Electron runtime instead of bundling a duplicate copy.
+代码参考自 [Woodenman](https://github.com/zxp19821005) 的 [ZCode AUR 打包](https://github.com/zxp19821005/My_AUR_Files/tree/main/zcode-bin)，使用系统 Electron 替代打包二进制以大幅降低安装体积。
 
 ## License
 
