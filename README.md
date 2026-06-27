@@ -67,7 +67,7 @@ If the launcher reports an Electron version mismatch during build, update `_elec
 
 ## Credits
 
-代码参考 [Woodenman](https://github.com/zxp19821005) 的 [ZCode AUR 包](https://github.com/zxp19821005/My_AUR_Files/tree/main/zcode-bin)。
+代码参考自 [Woodenman](https://github.com/zxp19821005) 的 [ZCode AUR package](https://github.com/zxp19821005/My_AUR_Files/tree/main/zcode-bin)，感谢他的设计思路。
 
 ## License
 
