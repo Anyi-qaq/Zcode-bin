@@ -91,10 +91,10 @@ jobs:
 
         echo "::group::Update files"
         cd aur-repo
-        cp ../PKGBUILD ../.SRCINFO . 2>/dev/null || true
+        cp ../PKGBUILD ../.SRCINFO ../zcode.sh . 2>/dev/null || true
         # Remove files no longer needed
         rm -f zcode.desktop zcode-bin.install
-        git add PKGBUILD .SRCINFO
+        git add PKGBUILD .SRCINFO zcode.sh
         git rm --ignore-unmatch zcode.desktop zcode-bin.install 2>/dev/null || true
         if [ -z "$(git status --porcelain)" ]; then
           echo "No changes to push to AUR"

@@ -21,18 +21,17 @@ namcap zcode-bin-*.pkg.tar.zst    # Lint built package
 
 ## Architecture
 
-Single source: upstream `.deb` from `cdn.codegeex.cn`. PKGBUILD extracts `data.tar.xz` via `ar` + `tar` and copies everything to the package. No makedepends, no compilation.
+Single source: upstream `.deb` from `cdn-zcode.z.ai`. PKGBUILD extracts via `bsdtar`, uses only `resources/` from the deb, and launches via system `electron41` instead of bundling Electron.
 
-**Installed layout** (from `.deb`):
-- `/opt/ZCode/zcode` — Electron binary
-- `/opt/ZCode/resources/` — `app.asar`, `glm/` (AI agent), `model-providers/`, `tools/ripgrep/rg`
+**Installed layout** (system Electron approach):
+- `/usr/lib/zcode/` — `app.asar`, `glm/` (AI agent), `model-providers/`, `tools/ripgrep/rg`
 - `/usr/share/applications/zcode.desktop`
 - `/usr/share/icons/hicolor/*/apps/zcode.png`
-- `/usr/bin/zcode-bin` — wrapper script
+- `/usr/bin/zcode` — launcher script (calls `electron41` with `app.asar`)
 
 ## Key Files
 
-- **`PKGBUILD`** — the only file that matters for building. Downloads `.deb`, extracts, fixes permissions, creates launcher.
+- **`PKGBUILD`** — the only file that matters for building. Downloads `.deb`, extracts `resources/`, patches `app.asar`, creates launcher.
 - **`.SRCINFO`** — AUR metadata. Regenerate with `makepkg --printsrcinfo >| .SRCINFO`.
 - **`zcode-update-checker.sh`** — scrapes changelog for latest version, verifies `.deb` URL, sed-updates PKGBUILD. Called by CI.
 - **`.github/workflows/update-aur.yml`** — daily cron: runs update checker, syncs .SRCINFO, pushes to GitHub + AUR. Needs `AUR_SSH_KEY` secret and `permissions: contents: write`.
