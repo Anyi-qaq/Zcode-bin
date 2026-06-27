@@ -16,7 +16,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PKGBUILD_FILE="${SCRIPT_DIR}/PKGBUILD"
-DEB_URL_BASE="https://cdn.codegeex.cn/zcode/electron/releases"
+DEB_URL_BASE="https://cdn-zcode.z.ai/zcode/electron/releases"
 CHANGELOG_URL="https://zcode.z.ai/en/changelog"
 USER_AGENT="Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36"
 

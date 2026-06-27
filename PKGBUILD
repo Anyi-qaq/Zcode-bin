@@ -1,5 +1,5 @@
 pkgname=zcode-bin
-pkgver=3.1.2
+pkgver=3.1.8
 pkgrel=1
 pkgdesc="ZCode - AI-powered code editor by ZAI"
 arch=('x86_64')
@@ -7,7 +7,7 @@ url="https://github.com/Anyi-qaq/Zcode-bin"
 license=('custom:ZCode')
 depends=('gtk3' 'nss' 'libnotify' 'libxss' 'libxtst' 'xdg-utils' 'libsecret' 'hicolor-icon-theme')
 options=('!strip')
-source=("zcode-${pkgver}-linux-x64.deb::https://cdn.codegeex.cn/zcode/electron/releases/${pkgver}/ZCode-${pkgver}-linux-x64.deb"
+source=("zcode-${pkgver}-linux-x64.deb::https://cdn-zcode.z.ai/zcode/electron/releases/${pkgver}/ZCode-${pkgver}-linux-x64.deb"
         "LICENSE")
 sha256sums=('SKIP'
             'SKIP')
