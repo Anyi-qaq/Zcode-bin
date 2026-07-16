@@ -66,7 +66,7 @@ jobs:
         sed -i "s/^${T}pkgver = .*/${T}pkgver = ${NEW_VER}/" .SRCINFO
         sed -i "s/^${T}pkgrel = .*/${T}pkgrel = 1/"           .SRCINFO
         sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${NEW_VER}-linux-x64.deb|g" .SRCINFO
-        sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${NEW_VER}/ZCode-|g"      .SRCINFO
+        sed -i "s|/releases/[0-9.]*/linux-x64/ZCode-|/releases/${NEW_VER}/linux-x64/ZCode-|g" .SRCINFO
         echo "=== .SRCINFO ==="
         head -10 .SRCINFO
 

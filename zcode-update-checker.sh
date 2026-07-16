@@ -62,13 +62,13 @@ get_latest_zcode_version() {
     IFS='.' read -r major minor patch <<< "$cur"
     for attempt in $(seq 1 5); do
         local next="${major}.${minor}.$((patch + attempt))"
-        if url_exists "${DEB_URL_BASE}/${next}/ZCode-${next}-linux-x64.deb"; then
+        if url_exists "${DEB_URL_BASE}/${next}/linux-x64/ZCode-${next}-linux-x64.deb"; then
             echo "$next"
             return 0
         fi
     done
     local next_minor="${major}.$((minor + 1)).0"
-    if url_exists "${DEB_URL_BASE}/${next_minor}/ZCode-${next_minor}-linux-x64.deb"; then
+    if url_exists "${DEB_URL_BASE}/${next_minor}/linux-x64/ZCode-${next_minor}-linux-x64.deb"; then
         echo "$next_minor"
         return 0
     fi
@@ -89,7 +89,7 @@ update_pkgbuild() {
 
     # Update .deb source URL
     sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${new_zcode}-linux-x64.deb|g" "$PKGBUILD_FILE"
-    sed -i "s|/releases/[0-9.]*/ZCode-|/releases/${new_zcode}/ZCode-|g" "$PKGBUILD_FILE"
+    sed -i "s|/releases/[0-9.]*/linux-x64/ZCode-|/releases/${new_zcode}/linux-x64/ZCode-|g" "$PKGBUILD_FILE"
 
     log_ok "PKGBUILD 已更新"
 }
@@ -138,7 +138,7 @@ main() {
     log_info "开始自动更新..."
 
     # Verify the .deb exists
-    local deb_url="${DEB_URL_BASE}/${latest_ver}/ZCode-${latest_ver}-linux-x64.deb"
+    local deb_url="${DEB_URL_BASE}/${latest_ver}/linux-x64/ZCode-${latest_ver}-linux-x64.deb"
     if ! url_exists "$deb_url"; then
         log_error ".deb 不可访问: $deb_url"
         exit 1
