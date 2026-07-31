@@ -66,9 +66,52 @@ jobs:
         sed -i "s/^${T}pkgver = .*/${T}pkgver = ${NEW_VER}/" .SRCINFO
         sed -i "s/^${T}pkgrel = .*/${T}pkgrel = 1/"           .SRCINFO
         sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${NEW_VER}-linux-x64.deb|g" .SRCINFO
+        sed -i "s|zcode-[0-9.]*-x86_64\.deb|zcode-${NEW_VER}-x86_64.deb|g" .SRCINFO
         sed -i "s|/releases/[0-9.]*/linux-x64/ZCode-|/releases/${NEW_VER}/linux-x64/ZCode-|g" .SRCINFO
+        # Sync the upstream .deb checksum (first sha256sums entry) from PKGBUILD
+        DEB_SHA256=$(grep -oP "^sha256sums=\('\K[0-9a-f]{64}" PKGBUILD || true)
+        if [ -z "$DEB_SHA256" ]; then
+          echo "::error::PKGBUILD first sha256sums entry is not a 64-hex checksum"
+          exit 1
+        fi
+        sed -i "0,/^${T}sha256sums = .*/s//${T}sha256sums = ${DEB_SHA256}/" .SRCINFO
         echo "=== .SRCINFO ==="
         head -10 .SRCINFO
+
+    - name: Validate PKGBUILD
+      if: steps.check.outputs.updated == 'true'
+      run: |
+        set -e
+        echo "::group::Syntax check"
+        bash -n PKGBUILD
+        echo "::endgroup::"
+
+        echo "::group::Key field checks"
+        grep -Eq '^pkgver=[0-9]+(\.[0-9]+)*$' PKGBUILD || { echo "::error::PKGBUILD: pkgver line missing or malformed"; exit 1; }
+        grep -Eq '^source=\(' PKGBUILD || { echo "::error::PKGBUILD: source array missing"; exit 1; }
+        grep -Eq '^sha256sums=\(' PKGBUILD || { echo "::error::PKGBUILD: sha256sums array missing"; exit 1; }
+        echo "Key fields OK"
+        echo "::endgroup::"
+
+        echo "::group::namcap lint (Arch container)"
+        docker run --rm -v "$PWD":/pkg -w /pkg archlinux:latest bash -ec '
+          pacman -Syu --noconfirm --needed namcap >/dev/null
+          source PKGBUILD
+          [ "${#source[@]}" -ge 1 ] || { echo "source array is empty"; exit 1; }
+          [ "${#sha256sums[@]}" -eq "${#source[@]}" ] || { echo "sha256sums count (${#sha256sums[@]}) != source count (${#source[@]})"; exit 1; }
+          for s in "${sha256sums[@]}"; do
+            case "$s" in
+              SKIP) ;;
+              *) echo "$s" | grep -Eq "^[0-9a-fA-F]{64}$" || { echo "invalid sha256sum entry: $s"; exit 1; } ;;
+            esac
+          done
+          namcap PKGBUILD | tee /tmp/namcap.out
+          if grep -q " E: " /tmp/namcap.out; then
+            echo "namcap reported errors - aborting"
+            exit 1
+          fi
+        '
+        echo "::endgroup::"
 
     - name: Commit and push to GitHub
       if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'

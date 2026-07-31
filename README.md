@@ -40,6 +40,7 @@ makepkg -si
 | `nodejs` | Node.js runtime for editor tooling |
 | `libgcc` | GCC runtime library |
 | `ripgrep` | Code search (replaces bundled rg) |
+| `xdg-utils` | `xdg-settings` used for registering the `zcode://` deep-link handler |
 | `asar` (makedepends) | Unpack/repack app.asar for path patching |
 
 ## Files
@@ -51,6 +52,21 @@ makepkg -si
 | `zcode-update-checker.sh` | Version checker, used by CI |
 | `zcode.sh` | Launcher script template (installed to `/usr/bin/zcode`) |
 | `.github/workflows/` | Daily cron: auto-check & push updates to AUR |
+
+## Memory Usage Optimization
+
+The launcher applies Chromium memory-reclamation flags by default:
+
+| Flag | Effect |
+|------|--------|
+| `--enable-features=PartitionAllocMemoryReclaimer` | Periodically returns freed allocator memory to the OS, preventing RSS from growing monotonically |
+| `--enable-features=IntensiveWakeUpThrottling` | Aggressively throttles timers in background views |
+| `--disable-features=BackForwardCache` | Disables page-snapshot caching (an editor never uses back/forward navigation) |
+| `--force-gpu-mem-available-mb=512` | Caps the GPU compositor/tile memory budget |
+
+For low-RAM machines, launch with `ZCODE_MEMORY_SAVER=1 zcode` to additionally disable GPU compositing (`--disable-gpu`) and cap the V8 heap (`--js-flags=--max-old-space-size=3072`).
+
+Defaults are placed before user flags, so any setting in the flags.conf files (see the launcher script header) overrides them. To disable a default feature list, set your own `--enable-features=...` / `--disable-features=...` in e.g. `~/.config/ZCode/zcode-flags.conf`.
 
 ## Troubleshooting
 

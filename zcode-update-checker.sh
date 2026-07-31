@@ -5,7 +5,8 @@
 #
 # Since ZCode 3.1+, upstream publishes Linux .deb packages directly.
 # This script checks the changelog for new versions, verifies the .deb
-# URL is accessible, and updates PKGBUILD in place.
+# URL is accessible, downloads it to pin its SHA-256, and updates
+# PKGBUILD in place.
 #
 # Usage:
 #   ./zcode-update-checker.sh              # Check for updates (dry run)
@@ -80,6 +81,7 @@ get_latest_zcode_version() {
 
 update_pkgbuild() {
     local new_zcode="$1"
+    local deb_sha256="$2"
 
     log_info "更新 PKGBUILD: ZCode ${new_zcode}"
 
@@ -90,6 +92,10 @@ update_pkgbuild() {
     # Update .deb source URL
     sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${new_zcode}-linux-x64.deb|g" "$PKGBUILD_FILE"
     sed -i "s|/releases/[0-9.]*/linux-x64/ZCode-|/releases/${new_zcode}/linux-x64/ZCode-|g" "$PKGBUILD_FILE"
+
+    # Pin the upstream .deb checksum (first sha256sums entry).
+    # LICENSE and zcode.sh stay SKIP: they are local repo files tracked by git.
+    sed -i "s/^sha256sums=('[0-9a-fSKIP]*'/sha256sums=('${deb_sha256}'/" "$PKGBUILD_FILE"
 
     log_ok "PKGBUILD 已更新"
 }
@@ -145,8 +151,26 @@ main() {
     fi
     log_ok ".deb 可访问"
 
+    # Download the .deb and compute its SHA-256 so makepkg can verify content
+    log_info "下载 .deb 以计算 SHA-256(约 120MB)..."
+    local deb_tmp deb_sha256
+    deb_tmp="$(mktemp --suffix=.deb)"
+    trap 'rm -f "${deb_tmp:-}"' EXIT
+    if ! curl -sL --fail --max-time 600 -H "User-Agent: $USER_AGENT" \
+        -o "$deb_tmp" "$deb_url"; then
+        log_error ".deb 下载失败: $deb_url"
+        exit 1
+    fi
+    deb_sha256=$(sha256sum "$deb_tmp" | cut -d' ' -f1)
+    rm -f "$deb_tmp"
+    if ! [[ "$deb_sha256" =~ ^[0-9a-f]{64}$ ]]; then
+        log_error "SHA-256 计算失败"
+        exit 1
+    fi
+    log_ok "SHA-256: ${deb_sha256}"
+
     # Update PKGBUILD
-    update_pkgbuild "$latest_ver"
+    update_pkgbuild "$latest_ver" "$deb_sha256"
 
     log_ok "更新完成! ZCode ${latest_ver}"
 }
