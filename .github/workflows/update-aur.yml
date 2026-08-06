@@ -121,7 +121,10 @@ jobs:
         git push origin main
 
     - name: Push to AUR
-      if: steps.check.outputs.updated == 'true'
+      # Always run: the step is idempotent (exits 0 when AUR is already current),
+      # and gating on a GitHub-diff signal wedges the AUR behind whenever the
+      # previous GitHub push succeeded but the AUR push failed (e.g. transient
+      # AUR outage) - the next cron run would see no diff and never retry.
       run: |
         set -e
         mkdir -p ~/.ssh
