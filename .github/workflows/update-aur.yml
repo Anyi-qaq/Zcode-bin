@@ -125,17 +125,28 @@ jobs:
       # and gating on a GitHub-diff signal wedges the AUR behind whenever the
       # previous GitHub push succeeded but the AUR push failed (e.g. transient
       # AUR outage) - the next cron run would see no diff and never retry.
+      # The whole sync (clone + commit + push) runs in a subprocess with its own
+      # `set -e` and is retried with backoff, so a short outage/maintenance
+      # window does not burn the daily run. (A function called from an `if`/`until`
+      # condition loses errexit for its whole body - a failed clone would limp on
+      # and could report a false "No changes" success - hence the subprocess.)
       run: |
         set -e
+        cat > /tmp/aur-sync.sh <<'SYNC'
+        set -e
+        # Fresh state per attempt: a failed clone or push may have left aur-repo
+        # behind, and a re-clone would then refuse to run.
+        cd "$GITHUB_WORKSPACE"
+        rm -rf aur-repo
+
         mkdir -p ~/.ssh
         ssh-keyscan -t ed25519,rsa,ecdsa aur.archlinux.org >> ~/.ssh/known_hosts 2>/dev/null
-        echo "::group::Clone AUR repo"
+
+        echo "Clone AUR repo"
         git clone ssh://aur@aur.archlinux.org/zcode-bin.git aur-repo
         echo "AUR remote: $(cd aur-repo && git remote get-url origin)"
         echo "AUR HEAD: $(cd aur-repo && git log -1 --oneline)"
-        echo "::endgroup::"
 
-        echo "::group::Update files"
         cd aur-repo
         cp ../PKGBUILD ../.SRCINFO ../zcode.sh . 2>/dev/null || true
         # Remove files no longer needed
@@ -148,14 +159,31 @@ jobs:
         fi
         echo "Files to be committed:"
         git diff --cached --stat
-        echo "::endgroup::"
 
-        echo "::group::Commit and push"
         git commit -m "chore: update to ZCode ${{ steps.check.outputs.new_version }}"
         echo "Pushing to aur@aur.archlinux.org:zcode-bin.git (master)..."
         git push origin master
         echo "Push successful!"
-        echo "::endgroup::"
+        SYNC
+
+        attempt=0
+        max_attempts=3
+        while :; do
+          attempt=$((attempt + 1))
+          echo "::group::AUR sync attempt $attempt"
+          if bash /tmp/aur-sync.sh; then
+            echo "::endgroup::"
+            break
+          fi
+          echo "::endgroup::"
+          if [ "$attempt" -ge "$max_attempts" ]; then
+            echo "::error::AUR sync failed after $max_attempts attempts (AUR down or unreachable); next cron run will retry"
+            exit 1
+          fi
+          delay=$((attempt * 60))
+          echo "::warning::AUR sync attempt $attempt failed, retrying in ${delay}s..."
+          sleep "$delay"
+        done
 
     - name: Create GitHub Release
       if: steps.check.outputs.updated == 'true' && github.event.inputs.force_update != 'true'
