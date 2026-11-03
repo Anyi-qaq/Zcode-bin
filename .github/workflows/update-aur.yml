@@ -63,8 +63,12 @@ jobs:
       run: |
         T="$(printf '\t')"
         NEW_VER='${{ steps.check.outputs.new_version }}'
+        # pkgrel is owned by PKGBUILD (a packaging-only fix may bump it without a
+        # version change), so mirror it instead of forcing 1 here.
+        NEW_REL=$(grep -oP '^pkgrel=\K[0-9]+' PKGBUILD)
+        [ -n "$NEW_REL" ] || { echo "::error::PKGBUILD: pkgrel missing or malformed"; exit 1; }
         sed -i "s/^${T}pkgver = .*/${T}pkgver = ${NEW_VER}/" .SRCINFO
-        sed -i "s/^${T}pkgrel = .*/${T}pkgrel = 1/"           .SRCINFO
+        sed -i "s/^${T}pkgrel = .*/${T}pkgrel = ${NEW_REL}/" .SRCINFO
         sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${NEW_VER}-linux-x64.deb|g" .SRCINFO
         sed -i "s|zcode-[0-9.]*-x86_64\.deb|zcode-${NEW_VER}-x86_64.deb|g" .SRCINFO
         sed -i "s|/releases/[0-9.]*/linux-x64/ZCode-|/releases/${NEW_VER}/linux-x64/ZCode-|g" .SRCINFO

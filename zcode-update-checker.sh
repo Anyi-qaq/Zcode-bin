@@ -85,9 +85,16 @@ update_pkgbuild() {
 
     log_info "更新 PKGBUILD: ZCode ${new_zcode}"
 
-    # Update pkgver and pkgrel
+    # Update pkgver. pkgrel is reset to 1 only when pkgver actually changes:
+    # this script runs daily via cron even when upstream is unchanged, so an
+    # unconditional reset would silently revert a deliberate packaging-only
+    # pkgrel bump and manufacture a spurious diff (-> bogus commit + release).
+    local old_pkgver
+    old_pkgver=$(grep '^pkgver=' "$PKGBUILD_FILE" | cut -d'=' -f2 | tr -d '"')
     sed -i "s/^pkgver=.*/pkgver=${new_zcode}/"  "$PKGBUILD_FILE"
-    sed -i "s/^pkgrel=.*/pkgrel=1/"             "$PKGBUILD_FILE"
+    if [ "$old_pkgver" != "$new_zcode" ]; then
+        sed -i "s/^pkgrel=.*/pkgrel=1/"         "$PKGBUILD_FILE"
+    fi
 
     # Update .deb source URL
     sed -i "s|ZCode-[0-9.]*-linux-x64\.deb|ZCode-${new_zcode}-linux-x64.deb|g" "$PKGBUILD_FILE"

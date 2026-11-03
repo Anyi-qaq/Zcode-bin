@@ -21,13 +21,13 @@ namcap zcode-bin-*.pkg.tar.zst    # Lint built package
 
 ## Architecture
 
-Single source: upstream `.deb` from `cdn-zcode.z.ai`. PKGBUILD extracts via `bsdtar`, uses only `resources/` from the deb, and launches via system `electron41` instead of bundling Electron.
+Single source: upstream `.deb` from `cdn-zcode.z.ai`. PKGBUILD extracts via `bsdtar`, uses only `resources/` from the deb, and launches via system `electron44` instead of bundling Electron.
 
 **Installed layout** (system Electron approach):
 - `/usr/lib/zcode/` — `app.asar`, `glm/` (AI agent), `model-providers/`, `tools/ripgrep/rg`
 - `/usr/share/applications/zcode.desktop`
 - `/usr/share/icons/hicolor/*/apps/zcode.png`
-- `/usr/bin/zcode` — launcher script (calls `electron41` with `app.asar`)
+- `/usr/bin/zcode` — launcher script (calls `electron44` with `app.asar`)
 
 ## Key Files
 

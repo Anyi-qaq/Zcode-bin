@@ -2,11 +2,11 @@
 
 Arch Linux PKGBUILD for [ZCode](https://zcode.z.ai/) - AI-powered code editor by ZAI.
 
-**Current version:** 3.1.8
+**Current version:** 3.17.2
 
 ## How It Works
 
-ZCode publishes Linux `.deb` packages. This PKGBUILD extracts the `.deb`, uses only the app resources, and launches via [system Electron](https://wiki.archlinux.org/title/Electron) (`electron41`) — avoiding the ~250MB bundled Electron binary to reduce package size. The launcher script at `/usr/bin/zcode` handles Electron flags, Wayland support, and DE integration.
+ZCode publishes Linux `.deb` packages. This PKGBUILD extracts the `.deb`, uses only the app resources, and launches via [system Electron](https://wiki.archlinux.org/title/Electron) (`electron44`) — avoiding the ~250MB bundled Electron binary to reduce package size. The launcher script at `/usr/bin/zcode` handles Electron flags, Wayland support, and DE integration.
 
 ## Installation
 
@@ -30,7 +30,7 @@ makepkg -si
 
 | Package | Purpose |
 |---------|---------|
-| `electron41` | System Electron runtime (avoids bundling ~250MB) |
+| `electron44` | System Electron runtime (avoids bundling ~250MB) |
 | `python` | GLM AI agent scripts |
 | `python-reportlab` | PDF generation in AI agent |
 | `python-lxml` | XML processing in AI agent |
